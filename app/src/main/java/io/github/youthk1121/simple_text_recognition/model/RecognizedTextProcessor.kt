@@ -9,26 +9,28 @@ class RecognizedTextProcessor {
     private val _processedText = MutableStateFlow("")
     val processedText = _processedText.asStateFlow()
 
-    private val _recognizedTextQueue = ArrayDeque<String>()
+    private val _recognizedTextLinesQueue = ArrayDeque<List<String>>()
 
     fun put(text: String) {
-        while (_recognizedTextQueue.size >= 3) {
-            Log.d(this::class.simpleName, "dequeue")
-            _recognizedTextQueue.removeFirst()
+        while (_recognizedTextLinesQueue.size >= RECOGNITION_COUNT) {
+            _recognizedTextLinesQueue.removeFirst()
         }
-        _recognizedTextQueue.add(text)
-        if (isQueuedTextValid())  {
-            Log.d(this::class.simpleName, "Valid text: ${_recognizedTextQueue.last().take(10)}")
-            _processedText.value = _recognizedTextQueue.last()
+        val lines = text.split(lineSeparator)
+        _recognizedTextLinesQueue.add(lines)
+        val validLines = validLines(lines)
+        if (validLines.isNotEmpty()) {
+            _processedText.value = validLines.joinToString(separator = lineSeparator)
         }
     }
 
-    private fun isQueuedTextValid(): Boolean {
-        return _recognizedTextQueue.size >= RECOGNITION_COUNT
-                && _recognizedTextQueue.toSet().size == 1
+    private fun validLines(textLines: List<String>): List<String> {
+        if (_recognizedTextLinesQueue.size < RECOGNITION_COUNT) return emptyList()
+        Log.d(this::class.simpleName, "First text: ${textLines.first()}")
+        return textLines.filter { line -> _recognizedTextLinesQueue.all { it.contains(line) } }
     }
 
     companion object {
-        const val RECOGNITION_COUNT = 3
+        private const val RECOGNITION_COUNT = 3
+        private val lineSeparator = System.lineSeparator()
     }
 }
